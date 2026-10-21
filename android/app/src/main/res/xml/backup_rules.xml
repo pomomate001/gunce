@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android Auto Backup (Android 11 and lower). Entries (database) and settings are backed up
+     to the user's Google Drive; photos and voice notes (files domain) are left out so the 25 MB quota is never hit
+     (a full copy is available through the in-app backup). -->
+<full-backup-content>
+    <include domain="database" path="." />
+    <include domain="sharedpref" path="." />
+</full-backup-content>

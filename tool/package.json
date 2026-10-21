@@ -1,0 +1,9 @@
+{
+  "name": "gunce-asset-tools",
+  "private": true,
+  "type": "module",
+  "description": "Asset generators for Günce (moods, stickers, icon, store graphics). Not part of the app build.",
+  "dependencies": {
+    "puppeteer-core": "^24.43.1"
+  }
+}
