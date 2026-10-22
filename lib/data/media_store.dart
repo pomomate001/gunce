@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -69,6 +70,25 @@ class MediaStore {
   ImageProvider photo(String name) {
     if (kIsWeb) return MemoryImage(_web[name] ?? _transparentPixel);
     return FileImage(File(p.join(dir.path, name)));
+  }
+
+  /// Height / width of a stored photo (0.75 if it cannot be read).
+  Future<double> photoAspect(String name) {
+    final done = Completer<double>();
+    final stream = photo(name).resolve(ImageConfiguration.empty);
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (info, _) {
+        if (!done.isCompleted) done.complete(info.image.height / info.image.width);
+        stream.removeListener(listener);
+      },
+      onError: (_, _) {
+        if (!done.isCompleted) done.complete(0.75);
+        stream.removeListener(listener);
+      },
+    );
+    stream.addListener(listener);
+    return done.future;
   }
 
   String audioSource(String name) => kIsWeb ? name : p.join(dir.path, name);

@@ -221,6 +221,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addPhoto => 'Add a photo';
 
   @override
+  String get photoFrame => 'Frame';
+
+  @override
+  String get frameNone => 'None';
+
+  @override
+  String get framePolaroid => 'Polaroid';
+
+  @override
+  String get frameTape => 'Tape';
+
+  @override
+  String get frameStamp => 'Stamp';
+
+  @override
+  String get frameFilm => 'Film';
+
+  @override
+  String get fullScreen => 'Full screen';
+
+  @override
   String get takePhoto => 'Take photo';
 
   @override

@@ -12,8 +12,10 @@ abstract final class Ph {
   static const caretRight = IconData(0xe13a, fontFamily: 'PhosphorRegular', matchTextDirection: true);
   static const chartPieSlice = IconData(0xe15a, fontFamily: 'PhosphorRegular', matchTextDirection: true);
   static const circle = IconData(0xe18a, fontFamily: 'PhosphorRegular', matchTextDirection: true);
+  static const cornersOut = IconData(0xe1d0, fontFamily: 'PhosphorRegular', matchTextDirection: true);
   static const dotsThreeOutline = IconData(0xe204, fontFamily: 'PhosphorRegular', matchTextDirection: true);
   static const fingerprint = IconData(0xe23e, fontFamily: 'PhosphorRegular', matchTextDirection: true);
+  static const frameCorners = IconData(0xe626, fontFamily: 'PhosphorRegular', matchTextDirection: true);
   static const image = IconData(0xe2ca, fontFamily: 'PhosphorRegular', matchTextDirection: true);
   static const images = IconData(0xe836, fontFamily: 'PhosphorRegular', matchTextDirection: true);
   static const magnifyingGlass = IconData(0xe30c, fontFamily: 'PhosphorRegular', matchTextDirection: true);

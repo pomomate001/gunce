@@ -482,6 +482,48 @@ abstract class AppLocalizations {
   /// **'Add a photo'**
   String get addPhoto;
 
+  /// No description provided for @photoFrame.
+  ///
+  /// In en, this message translates to:
+  /// **'Frame'**
+  String get photoFrame;
+
+  /// No description provided for @frameNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get frameNone;
+
+  /// No description provided for @framePolaroid.
+  ///
+  /// In en, this message translates to:
+  /// **'Polaroid'**
+  String get framePolaroid;
+
+  /// No description provided for @frameTape.
+  ///
+  /// In en, this message translates to:
+  /// **'Tape'**
+  String get frameTape;
+
+  /// No description provided for @frameStamp.
+  ///
+  /// In en, this message translates to:
+  /// **'Stamp'**
+  String get frameStamp;
+
+  /// No description provided for @frameFilm.
+  ///
+  /// In en, this message translates to:
+  /// **'Film'**
+  String get frameFilm;
+
+  /// No description provided for @fullScreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Full screen'**
+  String get fullScreen;
+
   /// No description provided for @takePhoto.
   ///
   /// In en, this message translates to:

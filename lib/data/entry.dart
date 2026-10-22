@@ -17,6 +17,7 @@ class Entry {
     this.photos = const [],
     this.audios = const [],
     this.stickers = const [],
+    this.layout = const {},
     required this.createdAt,
     required this.updatedAt,
   });
@@ -40,6 +41,10 @@ class Entry {
   final List<String> photos;
   final List<AudioClip> audios;
   final List<StickerItem> stickers;
+
+  /// Where each photo / voice note sits on the page, keyed by its file name.
+  /// Media without an entry here (older pages) get placed under the text by the editor.
+  final Map<String, MediaLayout> layout;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -59,6 +64,7 @@ class Entry {
     List<String>? photos,
     List<AudioClip>? audios,
     List<StickerItem>? stickers,
+    Map<String, MediaLayout>? layout,
     DateTime? updatedAt,
   }) =>
       Entry(
@@ -74,6 +80,7 @@ class Entry {
         photos: photos ?? this.photos,
         audios: audios ?? this.audios,
         stickers: stickers ?? this.stickers,
+        layout: layout ?? this.layout,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -92,6 +99,7 @@ class Entry {
         'photos': photos,
         'audios': [for (final a in audios) a.toJson()],
         'stickers': [for (final s in stickers) s.toJson()],
+        'layout': {for (final e in layout.entries) e.key: e.value.toJson()},
         'created': createdAt.toIso8601String(),
         'updated': updatedAt.toIso8601String(),
       };
@@ -109,6 +117,9 @@ class Entry {
         photos: [for (final p in (j['photos'] as List?) ?? const []) p as String],
         audios: [for (final a in (j['audios'] as List?) ?? const []) AudioClip.fromJson((a as Map).cast())],
         stickers: [for (final s in (j['stickers'] as List?) ?? const []) StickerItem.fromJson((s as Map).cast())],
+        layout: {
+          for (final e in ((j['layout'] as Map?) ?? const {}).entries) e.key as String: MediaLayout.fromJson((e.value as Map).cast()),
+        },
         createdAt: DateTime.parse(j['created'] as String),
         updatedAt: DateTime.parse(j['updated'] as String),
       );
@@ -163,5 +174,37 @@ class StickerItem {
         y: (j['y'] as num).toDouble(),
         size: (j['size'] as num).toDouble(),
         rotation: (j['r'] as num).toDouble(),
+      );
+}
+
+/// Position of a photo or voice note on the page. Like [StickerItem], the centre
+/// ([x], [y]) and the width ([size]) are fractions of the page width.
+class MediaLayout {
+  const MediaLayout({required this.x, required this.y, this.size = 1, this.aspect = 0.75, this.frame});
+
+  final double x, y, size;
+
+  /// Photos only: image height / width.
+  final double aspect;
+
+  /// Photos only: id of the frame drawn around it (null = none).
+  final String? frame;
+
+  MediaLayout copyWith({double? x, double? y, double? size, String? frame, bool clearFrame = false}) => MediaLayout(
+        x: x ?? this.x,
+        y: y ?? this.y,
+        size: size ?? this.size,
+        aspect: aspect,
+        frame: clearFrame ? null : (frame ?? this.frame),
+      );
+
+  Map<String, Object?> toJson() => {'x': x, 'y': y, 'size': size, 'a': aspect, if (frame != null) 'f': frame};
+
+  factory MediaLayout.fromJson(Map<String, Object?> j) => MediaLayout(
+        x: (j['x'] as num).toDouble(),
+        y: (j['y'] as num).toDouble(),
+        size: (j['size'] as num).toDouble(),
+        aspect: ((j['a'] as num?) ?? 0.75).toDouble(),
+        frame: j['f'] as String?,
       );
 }

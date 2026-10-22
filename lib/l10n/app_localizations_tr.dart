@@ -220,6 +220,27 @@ class AppLocalizationsTr extends AppLocalizations {
   String get addPhoto => 'Fotoğraf ekle';
 
   @override
+  String get photoFrame => 'Çerçeve';
+
+  @override
+  String get frameNone => 'Yok';
+
+  @override
+  String get framePolaroid => 'Polaroid';
+
+  @override
+  String get frameTape => 'Bant';
+
+  @override
+  String get frameStamp => 'Pul';
+
+  @override
+  String get frameFilm => 'Film';
+
+  @override
+  String get fullScreen => 'Tam ekran';
+
+  @override
   String get takePhoto => 'Fotoğraf çek';
 
   @override

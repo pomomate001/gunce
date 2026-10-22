@@ -11,7 +11,6 @@ import 'pro_service.dart';
 
 /// AdMob for the free version.
 ///
-/// * One anchored banner under the main navigation (see [AdBanner]).
 /// * Interstitials after an entry is saved, and once 30 minutes of use have
 ///   passed, shown at the next natural pause (tab change, leaving a screen),
 ///   never while the user is typing. Two interstitials are at least
@@ -30,8 +29,6 @@ class AdsService with WidgetsBindingObserver {
   DateTime? _lastShown;
   final _usage = Stopwatch();
 
-  /// True when banners may be shown right now.
-  final bannersOn = ValueNotifier(false);
   bool privacyOptionsRequired = false;
 
   bool get _allowed => AdConfig.enabled && !kIsWeb && !_pro.isPro;
@@ -82,9 +79,7 @@ class AdsService with WidgetsBindingObserver {
   AdRequest get request => AdRequest(nonPersonalizedAds: !_settings.adsPersonalized);
 
   void _syncPro() {
-    final on = _sdkReady && _allowed;
-    bannersOn.value = on;
-    if (!on) {
+    if (!(_sdkReady && _allowed)) {
       _interstitial?.dispose();
       _interstitial = null;
     } else if (_interstitial == null) {
@@ -154,87 +149,5 @@ class AdsService with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.paused) {
       _usage.stop();
     }
-  }
-}
-
-/// Anchored adaptive banner; takes no space when ads are off or not loaded.
-class AdBanner extends StatefulWidget {
-  const AdBanner({super.key});
-
-  @override
-  State<AdBanner> createState() => _AdBannerState();
-}
-
-class _AdBannerState extends State<AdBanner> {
-  BannerAd? _ad;
-  bool _loaded = false;
-  int _width = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    AdsService.instance.bannersOn.addListener(_onAvailability);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final w = MediaQuery.sizeOf(context).width.truncate();
-    if (w != _width) {
-      _width = w;
-      _load();
-    }
-  }
-
-  void _onAvailability() {
-    if (AdsService.instance.bannersOn.value) {
-      _load();
-    } else {
-      _dispose();
-      if (mounted) setState(() {});
-    }
-  }
-
-  Future<void> _load() async {
-    if (!AdsService.instance.bannersOn.value || _width == 0) return;
-    _dispose();
-    final size = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(_width) ?? AdSize.banner;
-    if (!mounted) return;
-    final ad = BannerAd(
-      adUnitId: AdConfig.banner,
-      size: size,
-      request: AdsService.instance.request,
-      listener: BannerAdListener(
-        onAdLoaded: (_) {
-          if (mounted) setState(() => _loaded = true);
-        },
-        onAdFailedToLoad: (ad, _) {
-          ad.dispose();
-          if (identical(ad, _ad)) _ad = null;
-        },
-      ),
-    );
-    _ad = ad;
-    await ad.load();
-  }
-
-  void _dispose() {
-    _ad?.dispose();
-    _ad = null;
-    _loaded = false;
-  }
-
-  @override
-  void dispose() {
-    AdsService.instance.bannersOn.removeListener(_onAvailability);
-    _dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final ad = _ad;
-    if (!_loaded || ad == null) return const SizedBox.shrink();
-    return SizedBox(width: ad.size.width.toDouble(), height: ad.size.height.toDouble(), child: AdWidget(ad: ad));
   }
 }

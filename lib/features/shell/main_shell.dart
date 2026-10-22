@@ -11,7 +11,7 @@ import '../more/more_page.dart';
 import '../more/reminders.dart';
 import '../stats/stats_page.dart';
 
-/// Bottom navigation (Journal, Calendar, +, Insights, More) and the single banner slot.
+/// Bottom navigation (Journal, Calendar, +, Insights, More).
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -48,7 +48,6 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    final p = context.pal;
     final l = context.l;
     return PopScope(
       canPop: _index == 0,
@@ -57,51 +56,37 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       },
       child: Scaffold(
         extendBody: true,
-        body: ValueListenableBuilder<bool>(
-          valueListenable: AdsService.instance.bannersOn,
-          builder: (context, adsOn, _) => Column(
+        body: Stack(
           children: [
-            Expanded(
-              child: MediaQuery.removePadding(
-                context: context,
-                removeBottom: adsOn,
-                child: Stack(
+            FadeTransition(
+              opacity: CurvedAnimation(parent: _fade, curve: Curves.easeOut),
+              child: IndexedStack(
+                index: _index,
                 children: [
-                  FadeTransition(
-                    opacity: CurvedAnimation(parent: _fade, curve: Curves.easeOut),
-                    child: IndexedStack(
-                      index: _index,
-                      children: [
-                        for (var i = 0; i < _pages.length; i++) TickerMode(enabled: i == _index, child: _pages[i]),
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: 12,
-                    child: SafeArea(
-                      top: false,
-                      child: _NavBar(
-                        index: _index,
-                        onTap: _go,
-                        onAdd: () => openEditor(context),
-                        items: [
-                          (Ph.notebook, PhFill.notebook, l.navJournal),
-                          (Ph.calendarBlank, PhFill.calendarBlank, l.navCalendar),
-                          (Ph.chartPieSlice, PhFill.chartPieSlice, l.navInsights),
-                          (Ph.dotsThreeOutline, PhFill.dotsThreeOutline, l.navMore),
-                        ],
-                      ),
-                    ),
-                  ),
+                  for (var i = 0; i < _pages.length; i++) TickerMode(enabled: i == _index, child: _pages[i]),
                 ],
+              ),
+            ),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 12,
+              child: SafeArea(
+                top: false,
+                child: _NavBar(
+                  index: _index,
+                  onTap: _go,
+                  onAdd: () => openEditor(context),
+                  items: [
+                    (Ph.notebook, PhFill.notebook, l.navJournal),
+                    (Ph.calendarBlank, PhFill.calendarBlank, l.navCalendar),
+                    (Ph.chartPieSlice, PhFill.chartPieSlice, l.navInsights),
+                    (Ph.dotsThreeOutline, PhFill.dotsThreeOutline, l.navMore),
+                  ],
                 ),
               ),
             ),
-            if (adsOn) ColoredBox(color: p.bg, child: const SafeArea(top: false, child: Center(child: AdBanner()))),
           ],
-          ),
         ),
       ),
     );

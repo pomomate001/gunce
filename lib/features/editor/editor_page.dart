@@ -18,6 +18,7 @@ import '../../data/mood.dart';
 import '../../services/ads_service.dart';
 import '../lock/lock_gate.dart';
 import 'editor_sheets.dart';
+import 'photo_frame.dart';
 import 'photo_view.dart';
 import 'sticker_layer.dart';
 import 'voice.dart';
@@ -58,12 +59,14 @@ class _EditorPageState extends State<EditorPage> {
   late Entry _draft;
   late final TextEditingController _title;
   late final TextEditingController _body;
-  late final String _originalJson;
+  late String _originalJson;
   final _scroll = ScrollController();
   final _added = <String>{};
   final _removed = <String>{};
-  String? _selectedSticker;
-  bool _stickerHit = false;
+  /// Key of the selected sticker, or file name of the selected photo / voice note.
+  String? _selected;
+  bool _itemHit = false;
+  double _pageWidth = 0;
   bool _saving = false;
 
   bool get _isNew => widget.entry == null;
@@ -81,6 +84,7 @@ class _EditorPageState extends State<EditorPage> {
     _title = TextEditingController(text: _draft.title);
     _body = TextEditingController(text: _draft.body);
     _originalJson = jsonEncode(_draft.toJson());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _placeUnplacedMedia());
   }
 
   @override
@@ -165,12 +169,22 @@ class _EditorPageState extends State<EditorPage> {
     }
     if (names.isEmpty) return;
     _added.addAll(names);
-    _update((e) => e.copyWith(photos: [...e.photos, ...names]));
+    final layout = {..._draft.layout};
+    var top = _nextTop;
+    for (final n in names) {
+      final aspect = await MediaStore.instance.photoAspect(n);
+      final h = _pageWidth * aspect;
+      layout[n] = MediaLayout(x: 0.5, y: (top + h / 2) / _pageWidth, aspect: aspect);
+      top += h + 16;
+    }
+    if (!mounted) return;
+    _update((e) => e.copyWith(photos: [...e.photos, ...names], layout: layout));
   }
 
   void _removePhoto(String name) {
     _removed.add(name);
-    _update((e) => e.copyWith(photos: e.photos.where((p) => p != name).toList()));
+    _selected = null;
+    _update((e) => e.copyWith(photos: e.photos.where((p) => p != name).toList(), layout: {...e.layout}..remove(name)));
   }
 
   Future<void> _addVoice() async {
@@ -178,12 +192,78 @@ class _EditorPageState extends State<EditorPage> {
     final clip = await showVoiceRecorder(context);
     if (clip == null) return;
     _added.add(clip.file);
-    _update((e) => e.copyWith(audios: [...e.audios, clip]));
+    final y = (_nextTop + _voiceHeight / 2) / _pageWidth;
+    _update((e) => e.copyWith(audios: [...e.audios, clip], layout: {...e.layout, clip.file: MediaLayout(x: 0.5, y: y)}));
   }
 
   void _removeVoice(AudioClip clip) {
     _removed.add(clip.file);
-    _update((e) => e.copyWith(audios: e.audios.where((a) => a.file != clip.file).toList()));
+    _selected = null;
+    _update((e) => e.copyWith(audios: e.audios.where((a) => a.file != clip.file).toList(), layout: {...e.layout}..remove(clip.file)));
+  }
+
+  // ------------------------------------------------------------- photo & voice placement
+
+  static const _voiceHeight = 56.0;
+
+  double _mediaHeight(String name, double width) {
+    final l = _draft.layout[name]!;
+    return _draft.photos.contains(name) ? PhotoFrame.byId(l.frame).height(width, l.aspect) : _voiceHeight;
+  }
+
+  /// Bottom of the lowest photo / voice note, in pixels from the top of the media area.
+  double get _mediaBottom {
+    var bottom = 0.0;
+    for (final e in _draft.layout.entries) {
+      bottom = math.max(bottom, e.value.y * _pageWidth + _mediaHeight(e.key, e.value.size * _pageWidth) / 2);
+    }
+    return bottom;
+  }
+
+  /// Where the next added photo / voice note starts: under everything already placed.
+  double get _nextTop => _draft.layout.isEmpty ? 0 : _mediaBottom + 16;
+
+  /// Pages saved before photos and voice notes could be moved: put them under the text
+  /// in the old order (voice notes, then photos) without marking the page as edited.
+  Future<void> _placeUnplacedMedia() async {
+    final audios = [for (final a in _draft.audios) if (!_draft.layout.containsKey(a.file)) a.file];
+    final photos = [for (final p in _draft.photos) if (!_draft.layout.containsKey(p)) p];
+    if (audios.isEmpty && photos.isEmpty) return;
+    final aspects = [for (final p in photos) await MediaStore.instance.photoAspect(p)];
+    if (!mounted) return;
+    final wasClean = !_dirty;
+    final layout = {..._draft.layout};
+    var top = _nextTop;
+    for (final a in audios) {
+      layout[a] = MediaLayout(x: 0.5, y: (top + _voiceHeight / 2) / _pageWidth);
+      top += _voiceHeight + 14;
+    }
+    for (var i = 0; i < photos.length; i++) {
+      final h = _pageWidth * aspects[i];
+      layout[photos[i]] = MediaLayout(x: 0.5, y: (top + h / 2) / _pageWidth, aspect: aspects[i]);
+      top += h + 16;
+    }
+    setState(() => _draft = _draft.copyWith(layout: layout));
+    if (wasClean) _originalJson = jsonEncode(_current.toJson());
+  }
+
+  void _changeLayout(String name, MediaLayout l) => _update((e) => e.copyWith(layout: {...e.layout, name: l}));
+
+  void _openFrames(String name) {
+    final l = _draft.layout[name]!;
+    showPhotoFrameSheet(
+      context,
+      image: MediaStore.instance.photo(name),
+      aspect: l.aspect,
+      current: PhotoFrame.byId(l.frame),
+      onPick: (f) {
+        final next = _draft.layout[name]!.copyWith(frame: f.name, clearFrame: f == PhotoFrame.none);
+        // A taller frame must not push the photo up into the text.
+        final half = f.height(next.size * _pageWidth, next.aspect) / 2 / _pageWidth;
+        _changeLayout(name, next.copyWith(y: math.max(next.y, half)));
+      },
+      onFullScreen: () => openPhotoViewer(context, _draft.photos, _draft.photos.indexOf(name)),
+    );
   }
 
   Future<void> _addSticker(double pageWidth) async {
@@ -203,7 +283,7 @@ class _EditorPageState extends State<EditorPage> {
     );
     setState(() {
       _draft = _draft.copyWith(stickers: [..._draft.stickers, item]);
-      _selectedSticker = item.key;
+      _selected = item.key;
     });
   }
 
@@ -213,7 +293,7 @@ class _EditorPageState extends State<EditorPage> {
   void _deleteSticker(String key) {
     setState(() {
       _draft = _draft.copyWith(stickers: _draft.stickers.where((s) => s.key != key).toList());
-      _selectedSticker = null;
+      _selected = null;
     });
   }
 
@@ -279,10 +359,11 @@ class _EditorPageState extends State<EditorPage> {
                       child: LayoutBuilder(builder: (context, box) {
                         const hPad = 22.0;
                         final pageWidth = box.maxWidth - hPad * 2;
+                        _pageWidth = pageWidth;
                         return Listener(
                           onPointerDown: (_) {
-                            if (!_stickerHit && _selectedSticker != null) setState(() => _selectedSticker = null);
-                            _stickerHit = false;
+                            if (!_itemHit && _selected != null) setState(() => _selected = null);
+                            _itemHit = false;
                           },
                           child: SingleChildScrollView(
                             controller: _scroll,
@@ -299,14 +380,14 @@ class _EditorPageState extends State<EditorPage> {
                                       left: s.x * pageWidth - (s.size * pageWidth + 40) / 2,
                                       top: s.y * pageWidth - (s.size * pageWidth + 40) / 2,
                                       child: Listener(
-                                        onPointerDown: (_) => _stickerHit = true,
+                                        onPointerDown: (_) => _itemHit = true,
                                         child: StickerView(
                                           key: ValueKey(s.key),
                                           item: s,
                                           pageWidth: pageWidth,
-                                          selected: _selectedSticker == s.key,
+                                          selected: _selected == s.key,
                                           onSelect: () => setState(() {
-                                            _selectedSticker = s.key;
+                                            _selected = s.key;
                                             _bringToFront(s.key);
                                           }),
                                           onChanged: _changeSticker,
@@ -433,17 +514,58 @@ class _EditorPageState extends State<EditorPage> {
             isCollapsed: true,
           ),
         ),
-        for (final a in _draft.audios)
-          Padding(
-            padding: const EdgeInsets.only(top: 14),
-            child: AudioTile(key: ValueKey(a.file), clip: a, onDelete: () => _removeVoice(a)),
-          ),
-        for (final photo in _draft.photos)
-          Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: _PhotoBlock(name: photo, onRemove: () => _removePhoto(photo), photos: _draft.photos),
-          ),
+        if (_draft.layout.isNotEmpty) ...[const SizedBox(height: 16), _mediaArea()],
       ],
+    );
+  }
+
+  /// Photos and voice notes, placed freely in the area under the text (so they move
+  /// down with it as the user writes more). The selected one is drawn on top.
+  Widget _mediaArea() {
+    final names = [
+      for (final a in _draft.audios) if (_draft.layout.containsKey(a.file)) a.file,
+      for (final p in _draft.photos) if (_draft.layout.containsKey(p)) p,
+    ];
+    final ordered = [...names.where((n) => n != _selected), ...names.where((n) => n == _selected)];
+    return SizedBox(
+      width: _pageWidth,
+      height: _mediaBottom + 4,
+      child: Stack(clipBehavior: Clip.none, children: [for (final name in ordered) _mediaItem(name)]),
+    );
+  }
+
+  Widget _mediaItem(String name) {
+    final w = _pageWidth;
+    final l = _draft.layout[name]!;
+    final isPhoto = _draft.photos.contains(name);
+    final width = l.size * w;
+    final height = _mediaHeight(name, width);
+    final clip = isPhoto ? null : _draft.audios.firstWhere((a) => a.file == name);
+    return Positioned(
+      key: ValueKey(name),
+      left: l.x * w - width / 2,
+      top: l.y * w - height / 2,
+      child: Listener(
+        onPointerDown: (_) => _itemHit = true,
+        child: MediaView(
+          layout: l,
+          pageWidth: w,
+          heightFor: (width) => _mediaHeight(name, width),
+          minSize: isPhoto ? 0.3 : 0.5,
+          selected: _selected == name,
+          onSelect: () => setState(() => _selected = name),
+          onChanged: (v) => _changeLayout(name, v),
+          onTap: isPhoto ? () => _openFrames(name) : () => setState(() => _selected = null),
+          onDelete: isPhoto ? () => _removePhoto(name) : null,
+          onFrame: isPhoto ? () => _openFrames(name) : null,
+          child: isPhoto
+              ? Hero(
+                  tag: 'photo-$name',
+                  child: FramedPhoto(image: MediaStore.instance.photo(name), frame: PhotoFrame.byId(l.frame), width: width, aspect: l.aspect),
+                )
+              : AudioTile(clip: clip!, onDelete: () => _removeVoice(clip)),
+        ),
+      ),
     );
   }
 }
@@ -540,37 +662,6 @@ class _Toolbar extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-}
-
-class _PhotoBlock extends StatelessWidget {
-  const _PhotoBlock({required this.name, required this.onRemove, required this.photos});
-  final String name;
-  final List<String> photos;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Pressable(
-          scale: 0.985,
-          onTap: () => openPhotoViewer(context, photos, photos.indexOf(name)),
-          child: Hero(
-            tag: 'photo-$name',
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: Image(image: MediaStore.instance.photo(name), width: double.infinity, fit: BoxFit.cover, gaplessPlayback: true),
-            ),
-          ),
-        ),
-        Positioned(
-          right: 10,
-          top: 10,
-          child: CircleButton(icon: Ph.x, onTap: onRemove, size: 36, background: Colors.black.withValues(alpha: 0.45), color: Colors.white),
-        ),
-      ],
     );
   }
 }

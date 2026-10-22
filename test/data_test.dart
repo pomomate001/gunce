@@ -4,6 +4,7 @@ import 'package:gunce/data/entries_controller.dart';
 import 'package:gunce/data/entry.dart';
 import 'package:gunce/data/entry_store.dart';
 import 'package:gunce/data/mood.dart';
+import 'package:gunce/features/editor/photo_frame.dart';
 import 'package:gunce/services/lock_service.dart';
 
 Entry _entry(DateTime date, {Mood? mood, String title = 'x', String body = ''}) =>
@@ -27,6 +28,10 @@ void main() {
       photos: ['p_1.jpg'],
       audios: [const AudioClip(file: 'a_1.m4a', durationMs: 3000, wave: [0.1, 0.5, 1])],
       stickers: [const StickerItem(key: 'k', sticker: 'red_heart', x: 0.5, y: 0.7, size: 0.3, rotation: 0.2)],
+      layout: {
+        'p_1.jpg': const MediaLayout(x: 0.4, y: 1.2, size: 0.7, aspect: 1.33, frame: 'polaroid'),
+        'a_1.m4a': const MediaLayout(x: 0.5, y: 0.9),
+      },
       favorite: true,
       paperId: 'lined',
       fontId: 'caveat',
@@ -35,6 +40,14 @@ void main() {
     final back = Entry.fromJson(e.toJson());
     expect(back.toJson(), e.toJson());
     expect(back.audios.single.wave, [0.1, 0.5, 1]);
+    expect(back.layout['p_1.jpg']!.frame, 'polaroid');
+  });
+
+  test('entries saved before media layout existed still load', () {
+    final json = _entry(DateTime(2026, 10, 1)).copyWith(photos: ['p_1.jpg']).toJson()..remove('layout');
+    final back = Entry.fromJson(json);
+    expect(back.photos, ['p_1.jpg']);
+    expect(back.layout, isEmpty);
   });
 
   test('empty entry detection', () {
@@ -86,5 +99,15 @@ void main() {
     expect(a, isNot(contains('1234')));
     expect(a, LockService.hash('1234', 'salt-a'));
     expect(a, isNot(LockService.hash('1234', 'salt-b')));
+  });
+
+  test('photo frames keep the photo aspect and add their own border', () {
+    expect(PhotoFrame.none.height(300, 0.75), 225);
+    expect(PhotoFrame.byId('polaroid'), PhotoFrame.polaroid);
+    expect(PhotoFrame.byId(null), PhotoFrame.none);
+    for (final f in PhotoFrame.values) {
+      final pad = f.padding(300);
+      expect(f.height(300, 0.75), closeTo((300 - pad.horizontal) * 0.75 + pad.vertical, 1e-9));
+    }
   });
 }

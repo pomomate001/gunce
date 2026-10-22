@@ -7,7 +7,7 @@ Bu dosya, uygulamayı Play Store'a çıkarmak ve ardından reklam ile Premium'u 
 | Konu | Durum |
 |---|---|
 | Uygulama (günlük, editör, takvim, istatistik, temalar, çıkartmalar, PIN, hatırlatıcı, yedek, TR/EN) | Hazır |
-| AdMob reklam kodu (banner + geçiş reklamı, UMP onay formu) | Hazır, **Google test kimlikleriyle** çalışıyor |
+| AdMob reklam kodu (geçiş reklamı, UMP onay formu) | Hazır, gerçek kimlikler yerleştirildi (debug derlemede Google test birimi kullanılır) |
 | RevenueCat Premium kodu (satın alma, geri yükleme, Premium kilitleri) | Hazır, **API anahtarı bekleniyor** (o zamana kadar Premium ekranı "Çok yakında" der) |
 | Gizlilik politikası ve kullanım koşulları | `store/privacy.html`, `store/terms.html` hazır, yayınlanmayı bekliyor |
 | Mağaza metinleri | `store/listing.md` |
@@ -80,14 +80,14 @@ cd C:\Users\yusuf\gunce_dev && flutter build appbundle --release
 ## 5. AdMob (uygulama Play'de görününce)
 
 1. AdMob → Uygulamalar → Uygulama ekle → Google Play'de yayında → "Günce"yi bağla.
-2. İki reklam birimi oluştur: **Banner** (sabit uyarlanabilir) ve **Geçiş reklamı** (Interstitial).
+2. Bir reklam birimi oluştur: **Geçiş reklamı** (Interstitial). Banner kullanılmıyor.
 3. Gizlilik ve mesajlaşma → **GDPR mesajı** oluştur ve yayınla (AB kullanıcılarına onay formunu bu mesaj gösterir).
-4. Geliştirici web sitenin köküne `app-ads.txt` koy (AdMob'un verdiği satır), ör. `https://pomomate001.github.io/app-ads.txt`. Play Console'daki geliştirici web sitesi bu adres olmalı.
-5. Kimlikleri yerleştir (ya da bana gönder, ben yerleştireyim):
+4. Geliştirici web sitenin köküne `app-ads.txt` koy (AdMob'un verdiği satır), ör. `https://pomomate001.github.io/app-ads.txt`. Play Console → Mağaza ayarları → Mağaza girişi iletişim bilgileri → Web sitesi: `https://pomomate001.github.io`. Doğrulama, uygulama Play'de herkese açık olunca tamamlanır.
+5. Kimlikler yerleştirildi:
    - Uygulama kimliği (`ca-app-pub-…~…`): `android/gradle.properties` → `admobAppId`
-   - Banner ve geçiş birimleri (`ca-app-pub-…/…`): `lib/config/app_config.dart` → `bannerUnitId`, `interstitialUnitId`
+   - Geçiş reklamı birimi (`ca-app-pub-…/…`): `lib/config/app_config.dart` → `interstitialUnitId`
 
-Reklam kuralları (`lib/config/app_config.dart`): günlük kaydedildiğinde bir geçiş reklamı, uygulamada her 30 dakikalık kullanımda bir geçiş reklamı (yazarken değil, sekme değiştirme gibi doğal bir arada), iki geçiş reklamı arasında en az 2 dakika. Banner yalnızca alt menünün altında tek bir yerde. Premium kullanıcıya hiç reklam yok.
+Reklam kuralları (`lib/config/app_config.dart`): günlük kaydedildiğinde bir geçiş reklamı, uygulamada her 30 dakikalık kullanımda bir geçiş reklamı (yazarken değil, sekme değiştirme gibi doğal bir arada), iki geçiş reklamı arasında en az 2 dakika. Banner reklam yok. Premium kullanıcıya hiç reklam yok.
 
 ## 6. Premium (RevenueCat + Google Play)
 
